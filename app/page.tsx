@@ -51,7 +51,7 @@ const ReviewTemplate = React.forwardRef<HTMLDivElement, ReviewTemplateProps>(
           <div className="absolute top-3 left-3 flex z-20 pointer-events-none">
             <div className="relative w-16 h-16 flex items-center justify-center">
               <img src="/image.png" alt="Logo" className="w-12 h-12 rounded-full border-2 border-[#ffdd00] object-cover bg-black shadow-lg" />
-              <div className="absolute inset-0 flex items-center justify-center -rotate-12">
+              <div className="absolute inset-0 flex items-center justify-center -rotate-12 translate-y-5">
                 <span
                   className="text-[#ffdd00] font-black text-[9px] italic tracking-tighter uppercase"
                   style={{ textShadow: '2px 2px 3px rgba(0,0,0,0.9), -1px -1px 0px rgba(0,0,0,0.9)' }}
