@@ -43,7 +43,7 @@ const ReviewTemplate = React.forwardRef<HTMLDivElement, ReviewTemplateProps>(
         {/* MAIN POSTER AREA (CENTER) */}
         <div className="relative flex-1 w-full border-y-2 border-[#ffdd00] bg-neutral-900 overflow-hidden">
           {bgImage ? (
-            <img src={bgImage} alt="Poster" crossOrigin="anonymous" className="absolute inset-0 w-full h-full object-cover object-center" />
+            <img src={bgImage} alt="Poster" className="absolute inset-0 w-full h-full object-cover object-center" />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center text-neutral-600 font-black text-xs uppercase italic tracking-widest text-center px-10">UPLOAD POSTER IMAGE</div>
           )}
@@ -136,20 +136,42 @@ export default function CinemawaStudio() {
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) setBgImage(URL.createObjectURL(file));
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setBgImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const downloadImage = useCallback(async () => {
     if (!templateRef.current || isGenerating) return;
     setIsGenerating(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 100));
-      const dataUrl = await toPng(templateRef.current, { pixelRatio: 2, cacheBust: true });
+      // Small delay to ensure all styles are applied
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      const dataUrl = await toPng(templateRef.current, { 
+        pixelRatio: 2, 
+        cacheBust: true,
+        skipAutoScale: true,
+        style: {
+          transform: 'scale(1)',
+          transformOrigin: 'top left'
+        }
+      });
+
       const link = document.createElement('a');
       link.download = `${movieName.replace(/\s+/g, '-')}-post.png`;
       link.href = dataUrl;
+      document.body.appendChild(link);
       link.click();
-    } catch (err) { alert('Failed to generate image.'); }
+      document.body.removeChild(link);
+    } catch (err) { 
+      console.error('Download error:', err);
+      alert('Failed to generate image. Please try again or use a different image.'); 
+    }
     finally { setIsGenerating(false); }
   }, [templateRef, movieName, isGenerating]);
 
