@@ -14,10 +14,12 @@ interface ReviewTemplateProps {
   verdict: string;
   bgImage: string | null;
   mode: 'review' | 'general';
+  imgZoom: number;
+  imgPosition: number;
 }
 
 const ReviewTemplate = React.forwardRef<HTMLDivElement, ReviewTemplateProps>(
-  ({ movieName, rating, firstHalf, secondHalf, verdict, bgImage, mode }, ref) => {
+  ({ movieName, rating, firstHalf, secondHalf, verdict, bgImage, mode, imgZoom, imgPosition }, ref) => {
     return (
       <div
         ref={ref}
@@ -43,7 +45,16 @@ const ReviewTemplate = React.forwardRef<HTMLDivElement, ReviewTemplateProps>(
         {/* MAIN POSTER AREA (CENTER) */}
         <div className="relative flex-1 w-full border-y-2 border-[#ffdd00] bg-neutral-900 overflow-hidden">
           {bgImage ? (
-            <img src={bgImage} alt="Poster" className="absolute inset-0 w-full h-full object-cover object-center" />
+            <img 
+              src={bgImage} 
+              alt="Poster" 
+              className="absolute inset-0 w-full h-full object-cover" 
+              style={{
+                objectPosition: `center ${imgPosition}%`,
+                transform: `scale(${imgZoom})`,
+                transformOrigin: 'center center'
+              }}
+            />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center text-neutral-600 font-black text-xs uppercase italic tracking-widest text-center px-10">UPLOAD POSTER IMAGE</div>
           )}
@@ -112,6 +123,8 @@ export default function CinemawaStudio() {
   const [secondHalf, setSecondHalf] = useState('');
   const [verdict, setVerdict] = useState('OVERALL GA DECENT 👍\nHARISH SHANKAR DID HIS JOB 👏');
   const [bgImage, setBgImage] = useState<string>('');
+  const [imgZoom, setImgZoom] = useState(1);
+  const [imgPosition, setImgPosition] = useState(50);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLoadingImage, setIsLoadingImage] = useState(false);
 
@@ -130,6 +143,8 @@ export default function CinemawaStudio() {
       });
       const data = await res.json();
       setBgImage(data.dataUrl);
+      setImgZoom(1); // Reset zoom on new image
+      setImgPosition(50); // Reset position
     } catch (err) { alert('Image load failed.'); }
     finally { setIsLoadingImage(false); }
   };
@@ -140,6 +155,8 @@ export default function CinemawaStudio() {
       const reader = new FileReader();
       reader.onloadend = () => {
         setBgImage(reader.result as string);
+        setImgZoom(1);
+        setImgPosition(50);
       };
       reader.readAsDataURL(file);
     }
@@ -149,19 +166,13 @@ export default function CinemawaStudio() {
     if (!templateRef.current || isGenerating) return;
     setIsGenerating(true);
     try {
-      // Small delay to ensure all styles are applied
       await new Promise(resolve => setTimeout(resolve, 200));
-      
       const dataUrl = await toPng(templateRef.current, { 
         pixelRatio: 2, 
         cacheBust: true,
         skipAutoScale: true,
-        style: {
-          transform: 'scale(1)',
-          transformOrigin: 'top left'
-        }
+        style: { transform: 'scale(1)', transformOrigin: 'top left' }
       });
-
       const link = document.createElement('a');
       link.download = `${movieName.replace(/\s+/g, '-')}-post.png`;
       link.href = dataUrl;
@@ -170,7 +181,7 @@ export default function CinemawaStudio() {
       document.body.removeChild(link);
     } catch (err) { 
       console.error('Download error:', err);
-      alert('Failed to generate image. Please try again or use a different image.'); 
+      alert('Failed to generate image. Please try again.'); 
     }
     finally { setIsGenerating(false); }
   }, [templateRef, movieName, isGenerating]);
@@ -184,26 +195,38 @@ export default function CinemawaStudio() {
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-black text-yellow-400 italic uppercase underline decoration-2 tracking-tighter">Cinemaawa Studio</h1>
             <div className="flex bg-black p-1 rounded-lg border border-neutral-800">
-              <button 
-                onClick={() => setTemplateMode('review')} 
-                className={`px-4 py-1.5 rounded-md text-[10px] font-black uppercase transition-all ${templateMode === 'review' ? 'bg-yellow-400 text-black' : 'text-neutral-500 hover:text-white'}`}
-              >
-                Review
-              </button>
-              <button 
-                onClick={() => setTemplateMode('general')} 
-                className={`px-4 py-1.5 rounded-md text-[10px] font-black uppercase transition-all ${templateMode === 'general' ? 'bg-yellow-400 text-black' : 'text-neutral-500 hover:text-white'}`}
-              >
-                General
-              </button>
+              <button onClick={() => setTemplateMode('review')} className={`px-4 py-1.5 rounded-md text-[10px] font-black uppercase transition-all ${templateMode === 'review' ? 'bg-yellow-400 text-black' : 'text-neutral-500 hover:text-white'}`}>Review</button>
+              <button onClick={() => setTemplateMode('general')} className={`px-4 py-1.5 rounded-md text-[10px] font-black uppercase transition-all ${templateMode === 'general' ? 'bg-yellow-400 text-black' : 'text-neutral-500 hover:text-white'}`}>General</button>
             </div>
           </div>
 
           <div className="space-y-4">
             <div className="bg-black p-4 rounded-xl border border-neutral-800 space-y-3">
               <input type="text" onChange={(e) => loadProxiedImage(e.target.value)} className="w-full bg-neutral-900 border border-neutral-800 p-3 rounded text-xs outline-none focus:border-yellow-400" placeholder="Paste Poster URL..." />
-              <input type="file" accept="image/*" onChange={handleFileUpload} className="w-full text-[10px] text-neutral-50" />
+              <div className="flex items-center justify-between gap-4">
+                <input type="file" accept="image/*" onChange={handleFileUpload} className="text-[10px] text-neutral-50" />
+                {bgImage && (
+                  <button onClick={() => { setImgZoom(1); setImgPosition(50); }} className="text-[9px] font-black text-yellow-400 uppercase hover:underline">Reset Crop</button>
+                )}
+              </div>
             </div>
+
+            {bgImage && (
+              <div className="grid grid-cols-2 gap-4 bg-black/50 p-3 rounded-xl border border-neutral-800">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-neutral-500 uppercase tracking-widest flex justify-between">
+                    Zoom <span>{imgZoom.toFixed(1)}x</span>
+                  </label>
+                  <input type="range" min="1" max="3" step="0.1" value={imgZoom} onChange={(e) => setImgZoom(parseFloat(e.target.value))} className="w-full accent-yellow-400 h-1" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-neutral-500 uppercase tracking-widest flex justify-between">
+                    Position <span>{imgPosition}%</span>
+                  </label>
+                  <input type="range" min="0" max="100" step="1" value={imgPosition} onChange={(e) => setImgPosition(parseInt(e.target.value))} className="w-full accent-yellow-400 h-1" />
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-3 gap-2">
               <input type="text" value={movieName} onChange={(e) => setMovieName(e.target.value)} className={`${templateMode === 'review' ? 'col-span-2' : 'col-span-3'} w-full bg-black border border-neutral-800 p-3 rounded-lg font-bold uppercase tracking-widest outline-none focus:border-yellow-400`} placeholder={templateMode === 'review' ? 'Movie Name' : 'Title'} />
@@ -212,26 +235,9 @@ export default function CinemawaStudio() {
               )}
             </div>
 
-            <textarea 
-              value={firstHalf} 
-              onChange={(e) => setFirstHalf(e.target.value)} 
-              className="w-full bg-black border border-neutral-800 p-3 rounded-lg h-24 text-[11px] outline-none" 
-              placeholder={templateMode === 'review' ? '1st Half Highlights...' : 'Top Content / Info...'} 
-            />
-            
-            <textarea 
-              value={secondHalf} 
-              onChange={(e) => setSecondHalf(e.target.value)} 
-              className="w-full bg-black border border-neutral-800 p-3 rounded-lg h-24 text-[11px] outline-none" 
-              placeholder={templateMode === 'review' ? '2nd Half Highlights...' : 'Bottom Content / Info...'} 
-            />
-
-            <textarea 
-              value={verdict} 
-              onChange={(e) => setVerdict(e.target.value)} 
-              className="w-full bg-[#ffdd00]/10 border border-[#ffdd00]/50 p-3 rounded-lg font-black text-yellow-400 uppercase outline-none text-xs h-16" 
-              placeholder={templateMode === 'review' ? 'Verdict...' : 'Footer/Final Note...'} 
-            />
+            <textarea value={firstHalf} onChange={(e) => setFirstHalf(e.target.value)} className="w-full bg-black border border-neutral-800 p-3 rounded-lg h-24 text-[11px] outline-none" placeholder={templateMode === 'review' ? '1st Half Highlights...' : 'Top Content / Info...'} />
+            <textarea value={secondHalf} onChange={(e) => setSecondHalf(e.target.value)} className="w-full bg-black border border-neutral-800 p-3 rounded-lg h-24 text-[11px] outline-none" placeholder={templateMode === 'review' ? '2nd Half Highlights...' : 'Bottom Content / Info...'} />
+            <textarea value={verdict} onChange={(e) => setVerdict(e.target.value)} className="w-full bg-[#ffdd00]/10 border border-[#ffdd00]/50 p-3 rounded-lg font-black text-yellow-400 uppercase outline-none text-xs h-16" placeholder={templateMode === 'review' ? 'Verdict...' : 'Footer/Final Note...'} />
           </div>
 
           <button onClick={downloadImage} disabled={isGenerating} className="w-full bg-yellow-400 text-black font-black py-4 rounded-2xl hover:bg-yellow-300 uppercase tracking-widest shadow-xl">
@@ -242,16 +248,7 @@ export default function CinemawaStudio() {
         <div className="flex flex-col items-center">
           <div className="relative group ring-2 ring-yellow-400/20 rounded-xl shadow-2xl w-full flex justify-center max-w-[450px]">
             {isLoadingImage && <div className="absolute inset-0 bg-black/90 z-50 flex items-center justify-center text-yellow-400 font-black">Loading Poster...</div>}
-            <ReviewTemplate 
-              ref={templateRef} 
-              movieName={movieName} 
-              rating={rating} 
-              firstHalf={firstHalf} 
-              secondHalf={secondHalf} 
-              verdict={verdict} 
-              bgImage={bgImage}
-              mode={templateMode}
-            />
+            <ReviewTemplate ref={templateRef} movieName={movieName} rating={rating} firstHalf={firstHalf} secondHalf={secondHalf} verdict={verdict} bgImage={bgImage} mode={templateMode} imgZoom={imgZoom} imgPosition={imgPosition} />
           </div>
         </div>
       </div>
